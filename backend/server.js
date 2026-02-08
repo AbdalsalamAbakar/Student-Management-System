@@ -24,7 +24,17 @@ const studentSchema = new mongoose.Schema({
 
 const Student = mongoose.model("Student", studentSchema);
 
-// Routes
+// Root route (friendly message)
+app.get("/", (req, res) => {
+  res.send("Student Management System Backend is running!");
+});
+
+// Health check route
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", message: "Backend is healthy!" });
+});
+
+// CRUD Routes
 app.get("/students", async (req, res) => {
   try {
     const students = await Student.find();
@@ -64,6 +74,11 @@ app.delete("/students/:id", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to delete student" });
   }
+});
+
+// Catch-all route for undefined paths
+app.all("*", (req, res) => {
+  res.status(404).json({ error: "Route not found" });
 });
 
 const PORT = process.env.PORT || 5000;
