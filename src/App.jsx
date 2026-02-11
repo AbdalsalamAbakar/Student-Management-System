@@ -15,7 +15,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
 
-  const API = "http://localhost:5000/students";
+  const API = "https://backend-purple-pond-8560.fly.dev/students";
 
   // Fetch students
   const fetchStudents = async () => {
