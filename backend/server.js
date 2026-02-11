@@ -2,13 +2,14 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB (Mongoose 7+)
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.error("MongoDB connection error:", err));
@@ -24,60 +25,42 @@ const studentSchema = new mongoose.Schema({
 
 const Student = mongoose.model("Student", studentSchema);
 
-// Root route (friendly message)
+// Routes
 app.get("/", (req, res) => {
   res.send("Student Management System Backend is running!");
 });
 
-// Health check route
 app.get("/health", (req, res) => {
-  res.json({ status: "OK", message: "Backend is healthy!" });
+  res.json({ status: "OK" });
 });
 
-// CRUD Routes
 app.get("/students", async (req, res) => {
-  try {
-    const students = await Student.find();
-    res.json(students);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch students" });
-  }
+  const students = await Student.find();
+  res.json(students);
 });
 
 app.post("/students", async (req, res) => {
-  try {
-    const student = new Student(req.body);
-    await student.save();
-    res.json(student);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to create student" });
-  }
+  const student = new Student(req.body);
+  await student.save();
+  res.json(student);
 });
 
 app.put("/students/:id", async (req, res) => {
-  try {
-    const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(student);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to update student" });
-  }
+  const student = await Student.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  );
+  res.json(student);
 });
 
 app.delete("/students/:id", async (req, res) => {
-  try {
-    await Student.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to delete student" });
-  }
+  await Student.findByIdAndDelete(req.params.id);
+  res.json({ message: "Deleted" });
 });
 
-// Catch-all route for undefined paths
-app.all("*", (req, res) => {
+// ✅ Catch-all (correct)
+app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
