@@ -24,12 +24,12 @@ const studentSchema = new mongoose.Schema({
 
 const Student = mongoose.model("Student", studentSchema);
 
-// Root route (friendly message)
+// Root route
 app.get("/", (req, res) => {
   res.send("Student Management System Backend is running!");
 });
 
-// Health check route
+// Health check
 app.get("/health", (req, res) => {
   res.json({ status: "OK", message: "Backend is healthy!" });
 });
@@ -76,10 +76,11 @@ app.delete("/students/:id", async (req, res) => {
   }
 });
 
-// Catch-all route for undefined paths
-app.all("*", (req, res) => {
-  res.status(404).json({ error: "Route not found" });
+// ✅ Fixed catch-all route for undefined paths (Express 5)
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
 });
 
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
