@@ -5,7 +5,6 @@ import SearchFilter from "./components/searchFilter";
 import { CSVLink } from "react-csv";
 import "./App.css";
 
-// PDF libraries (correct import for ES modules)
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -15,55 +14,77 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
 
-  const API = "https://student-management-system-backend-ky9l.onrender.com/students";
+  // ✅ USE ENV VARIABLE (RENDER FRIENDLY)
+  const API = `${import.meta.env.VITE_API_URL}/students`;
 
-  // Fetch students
+  // ✅ Fetch students (with error handling)
   const fetchStudents = async () => {
-    const res = await fetch(API);
-    const data = await res.json();
-    setStudents(data.map((s) => ({ ...s, id: s._id })));
+    try {
+      const res = await fetch(API);
+      if (!res.ok) throw new Error("Failed to fetch students");
+      const data = await res.json();
+      setStudents(data.map((s) => ({ ...s, id: s._id })));
+    } catch (error) {
+      console.error(error);
+      alert("Could not load students");
+    }
   };
 
   useEffect(() => {
     fetchStudents();
   }, []);
 
-  // Add student
+  // ✅ Add student
   const addStudent = async (student) => {
-    const res = await fetch(API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(student),
-    });
-    const newStudent = await res.json();
-    setStudents([...students, { ...newStudent, id: newStudent._id }]);
-  };
-
-  // Update student
-  const updateStudent = async (student) => {
-    const res = await fetch(`${API}/${student.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(student),
-    });
-    const updated = await res.json();
-    setStudents(
-      students.map((s) =>
-        s.id === updated._id ? { ...updated, id: updated._id } : s
-      )
-    );
-    setEditingStudent(null);
-  };
-
-  // Delete student
-  const deleteStudent = async (id) => {
-    if (window.confirm("Are you sure you want to delete this student?")) {
-      await fetch(`${API}/${id}`, { method: "DELETE" });
-      setStudents(students.filter((s) => s.id !== id));
+    try {
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(student),
+      });
+      const newStudent = await res.json();
+      setStudents([...students, { ...newStudent, id: newStudent._id }]);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to add student");
     }
   };
 
-  // Filter & search
+  // ✅ Update student
+  const updateStudent = async (student) => {
+    try {
+      const res = await fetch(`${API}/${student.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(student),
+      });
+      const updated = await res.json();
+      setStudents(
+        students.map((s) =>
+          s.id === updated._id ? { ...updated, id: updated._id } : s
+        )
+      );
+      setEditingStudent(null);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update student");
+    }
+  };
+
+  // ✅ Delete student
+  const deleteStudent = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this student?")) return;
+
+    try {
+      await fetch(`${API}/${id}`, { method: "DELETE" });
+      setStudents(students.filter((s) => s.id !== id));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete student");
+    }
+  };
+
+  // ✅ Filter & search
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.fullName.toLowerCase().includes(search.toLowerCase()) ||
@@ -73,7 +94,7 @@ export default function App() {
     return matchesSearch && matchesStatus;
   });
 
-  // CSV data
+  // ✅ CSV data
   const csvData = filteredStudents.map((s, index) => ({
     "No.": index + 1,
     "Full Name": s.fullName,
@@ -83,7 +104,7 @@ export default function App() {
     Status: s.status,
   }));
 
-  // PDF export
+  // ✅ PDF export
   const exportPDF = () => {
     if (filteredStudents.length === 0) {
       alert("No students to export!");
@@ -92,11 +113,14 @@ export default function App() {
 
     const doc = new jsPDF();
     const tableColumn = ["No.", "Full Name", "Email", "Age", "Course", "Status"];
-    const tableRows = [];
-
-    filteredStudents.forEach((s, index) => {
-      tableRows.push([index + 1, s.fullName, s.email, s.age, s.course, s.status]);
-    });
+    const tableRows = filteredStudents.map((s, index) => [
+      index + 1,
+      s.fullName,
+      s.email,
+      s.age,
+      s.course,
+      s.status,
+    ]);
 
     doc.text("Student Management System", 14, 15);
 
@@ -105,7 +129,6 @@ export default function App() {
       body: tableRows,
       startY: 20,
       styles: { fontSize: 10 },
-      headStyles: { fillColor: [37, 99, 235] }, // blue header
     });
 
     doc.save("students.pdf");
@@ -136,34 +159,12 @@ export default function App() {
       />
 
       {students.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "16px",
-            flexWrap: "wrap", // responsive on mobile
-            marginTop: "20px",
-          }}
-        >
-          {/* CSV Export */}
-          <CSVLink
-            data={csvData}
-            headers={[
-              { label: "No.", key: "No." },
-              { label: "Full Name", key: "Full Name" },
-              { label: "Email", key: "Email" },
-              { label: "Age", key: "Age" },
-              { label: "Course", key: "Course" },
-              { label: "Status", key: "Status" },
-            ]}
-            filename="students.csv"
-            className="export-btn"
-          >
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <CSVLink data={csvData} filename="students.csv" className="export-btn">
             Export CSV
           </CSVLink>
 
-          {/* PDF Export */}
-          <button type="button" className="export-btn" onClick={exportPDF}>
+          <button className="export-btn" onClick={exportPDF}>
             Export PDF
           </button>
         </div>
