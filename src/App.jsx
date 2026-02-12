@@ -14,19 +14,17 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
 
-  // ✅ USE ENV VARIABLE (RENDER FRIENDLY)
+  // ✅ API FROM ENV
   const API = `${import.meta.env.VITE_API_URL}/students`;
 
-  // ✅ Fetch students (with error handling)
   const fetchStudents = async () => {
     try {
       const res = await fetch(API);
-      if (!res.ok) throw new Error("Failed to fetch students");
+      if (!res.ok) throw new Error();
       const data = await res.json();
-      setStudents(data.map((s) => ({ ...s, id: s._id })));
-    } catch (error) {
-      console.error(error);
-      alert("Could not load students");
+      setStudents(data.map(s => ({ ...s, id: s._id })));
+    } catch {
+      alert("Failed to load students");
     }
   };
 
@@ -34,109 +32,46 @@ export default function App() {
     fetchStudents();
   }, []);
 
-  // ✅ Add student
   const addStudent = async (student) => {
-    try {
-      const res = await fetch(API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(student),
-      });
-      const newStudent = await res.json();
-      setStudents([...students, { ...newStudent, id: newStudent._id }]);
-    } catch (error) {
-      console.error(error);
-      alert("Failed to add student");
-    }
-  };
-
-  // ✅ Update student
-  const updateStudent = async (student) => {
-    try {
-      const res = await fetch(`${API}/${student.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(student),
-      });
-      const updated = await res.json();
-      setStudents(
-        students.map((s) =>
-          s.id === updated._id ? { ...updated, id: updated._id } : s
-        )
-      );
-      setEditingStudent(null);
-    } catch (error) {
-      console.error(error);
-      alert("Failed to update student");
-    }
-  };
-
-  // ✅ Delete student
-  const deleteStudent = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this student?")) return;
-
-    try {
-      await fetch(`${API}/${id}`, { method: "DELETE" });
-      setStudents(students.filter((s) => s.id !== id));
-    } catch (error) {
-      console.error(error);
-      alert("Failed to delete student");
-    }
-  };
-
-  // ✅ Filter & search
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch =
-      student.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      student.email.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      filterStatus === "All" || student.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
-
-  // ✅ CSV data
-  const csvData = filteredStudents.map((s, index) => ({
-    "No.": index + 1,
-    "Full Name": s.fullName,
-    Email: s.email,
-    Age: s.age,
-    Course: s.course,
-    Status: s.status,
-  }));
-
-  // ✅ PDF export
-  const exportPDF = () => {
-    if (filteredStudents.length === 0) {
-      alert("No students to export!");
-      return;
-    }
-
-    const doc = new jsPDF();
-    const tableColumn = ["No.", "Full Name", "Email", "Age", "Course", "Status"];
-    const tableRows = filteredStudents.map((s, index) => [
-      index + 1,
-      s.fullName,
-      s.email,
-      s.age,
-      s.course,
-      s.status,
-    ]);
-
-    doc.text("Student Management System", 14, 15);
-
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 20,
-      styles: { fontSize: 10 },
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(student),
     });
-
-    doc.save("students.pdf");
+    const newStudent = await res.json();
+    setStudents([...students, { ...newStudent, id: newStudent._id }]);
   };
+
+  const updateStudent = async (student) => {
+    const res = await fetch(`${API}/${student.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(student),
+    });
+    const updated = await res.json();
+    setStudents(
+      students.map(s =>
+        s.id === updated._id ? { ...updated, id: updated._id } : s
+      )
+    );
+    setEditingStudent(null);
+  };
+
+  const deleteStudent = async (id) => {
+    if (!confirm("Delete this student?")) return;
+    await fetch(`${API}/${id}`, { method: "DELETE" });
+    setStudents(students.filter(s => s.id !== id));
+  };
+
+  const filteredStudents = students.filter(s =>
+    (s.fullName.toLowerCase().includes(search.toLowerCase()) ||
+     s.email.toLowerCase().includes(search.toLowerCase())) &&
+    (filterStatus === "All" || s.status === filterStatus)
+  );
 
   return (
     <div className="app-container">
-      <h1 className="app-title">Student Management System</h1>
+      <h1>Student Management System</h1>
 
       <StudentForm
         addStudent={addStudent}
@@ -155,19 +90,26 @@ export default function App() {
         students={filteredStudents}
         onEdit={setEditingStudent}
         onDelete={deleteStudent}
-        editingStudent={editingStudent}
       />
 
       {students.length > 0 && (
-        <div style={{ marginTop: "20px", textAlign: "center" }}>
-          <CSVLink data={csvData} filename="students.csv" className="export-btn">
+        <>
+          <CSVLink data={filteredStudents} filename="students.csv">
             Export CSV
           </CSVLink>
-
-          <button className="export-btn" onClick={exportPDF}>
+          <button onClick={() => {
+            const doc = new jsPDF();
+            autoTable(doc, {
+              head: [["Name", "Email", "Age", "Course", "Status"]],
+              body: filteredStudents.map(s => [
+                s.fullName, s.email, s.age, s.course, s.status
+              ]),
+            });
+            doc.save("students.pdf");
+          }}>
             Export PDF
           </button>
-        </div>
+        </>
       )}
     </div>
   );
