@@ -2,39 +2,71 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+/* =======================
+   MIDDLEWARE (ORDER MATTERS)
+======================= */
+
+// Allow requests from frontend (Vite + production)
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: false,
+  })
+);
+
+// Handle JSON body
 app.use(express.json());
 
-// Connect to MongoDB (Mongoose 7+)
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.error("MongoDB connection error:", err));
+/* =======================
+   DATABASE CONNECTION
+======================= */
 
-// Student Schema
-const studentSchema = new mongoose.Schema({
-  fullName: String,
-  email: String,
-  age: Number,
-  course: String,
-  status: String,
-});
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
+
+/* =======================
+   SCHEMA & MODEL
+======================= */
+
+const studentSchema = new mongoose.Schema(
+  {
+    fullName: { type: String, required: true },
+    email: { type: String, required: true },
+    age: { type: Number },
+    course: { type: String },
+    status: { type: String },
+  },
+  { timestamps: true }
+);
 
 const Student = mongoose.model("Student", studentSchema);
 
-// Root route
+/* =======================
+   ROUTES
+======================= */
+
+// Root
 app.get("/", (req, res) => {
   res.send("Student Management System Backend is running!");
 });
 
-// Health check
+// Health check (use this for uptime monitor)
 app.get("/health", (req, res) => {
-  res.json({ status: "OK", message: "Backend is healthy!" });
+  res.json({ status: "OK" });
 });
 
-// CRUD Routes
+// Get all students
 app.get("/students", async (req, res) => {
   try {
     const students = await Student.find();
@@ -45,20 +77,31 @@ app.get("/students", async (req, res) => {
   }
 });
 
+// Create student
 app.post("/students", async (req, res) => {
   try {
     const student = new Student(req.body);
     await student.save();
-    res.json(student);
+    res.status(201).json(student);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to create student" });
   }
 });
 
+// Update student
 app.put("/students/:id", async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const student = await Student.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    if (!student) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
     res.json(student);
   } catch (err) {
     console.error(err);
@@ -66,21 +109,36 @@ app.put("/students/:id", async (req, res) => {
   }
 });
 
+// Delete student
 app.delete("/students/:id", async (req, res) => {
   try {
-    await Student.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
+    const student = await Student.findByIdAndDelete(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
+    res.json({ message: "Student deleted successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete student" });
   }
 });
 
-// ✅ Fixed catch-all route for undefined paths (Express 5)
+/* =======================
+   404 HANDLER
+======================= */
+
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-// Start server
+/* =======================
+   SERVER
+======================= */
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
