@@ -15,7 +15,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
 
-  const API = "https://backend-dark-tree-4550.fly.dev/students";
+  const API = "https://student-management-system-backend-ky9l.onrender.com/students";
 
   // Fetch students
   const fetchStudents = async () => {
